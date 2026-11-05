@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Puyo Puyo Pop</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Jua', sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #311b92 50%, #4a148c 100%);
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Canvas custom styling */
+        .game-board-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Pulse and glow animations for combos */
+        @keyframes comboGlow {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
+        .combo-text {
+            animation: comboGlow 0.8s ease-out forwards;
+        }
+
+        /* Custom scrollbar style if needed */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white flex flex-col items-center justify-center p-2 sm:p-4 overflow-x-hidden">
+
+    <!-- Game Container -->
+    <div class="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl p-4 border border-slate-700/50 shadow-2xl flex flex-col items-center">
+        
+        <!-- Header / Title -->
+        <div class="w-full flex items-center justify-between mb-3 px-2">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-400 tracking-wider">
+                PUYO PUYO
+            </h1>
+            <button id="soundToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-yellow-400 p-2.5 rounded-full transition-all border border-slate-600 active:scale-95">
+                <i class="fas fa-volume-up text-lg" id="soundIcon"></i>
+            </button>
+        </div>
+
+        <!-- Main Layout Grid -->
+        <div class="w-full flex gap-3 justify-center items-start">
+            
+            <!-- Game Canvas Board -->
+            <div class="game-board-container bg-slate-950/90 rounded-2xl border-4 border-slate-800 overflow-hidden relative">
+                <canvas id="gameCanvas" class="block"></canvas>
+                
+                <!-- Overlay for Pause/Game Over -->
+                <div id="overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-4 transition-all duration-300 z-10">
+                    <h2 id="overlayTitle" class="text-3xl sm:text-4xl font-bold text-yellow-400 drop-shadow-md">PUYO POP</h2>
+                    <p id="overlaySub" class="text-slate-300 text-sm sm:text-base px-6 text-center">방향키로 이동 / Z,X 또는 Up키로 회전</p>
+                    <button id="startBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-8 rounded-full text-lg shadow-lg hover:shadow-emerald-500/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all">
+                        게임 시작
+                    </button>
+                </div>
+
+                <!-- Floating Combo Text Container -->
+                <div id="comboContainer" class="absolute inset-0 pointer-events-none flex items-center justify-center z-20"></div>
+            </div>
+
+            <!-- Sidebar Info Panel -->
+            <div class="flex flex-col gap-3 w-28 sm:w-32">
+                <!-- Next Piece Box -->
+                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
+                    <span class="text-xs text-slate-400 font-bold mb-1">NEXT</span>
+                    <canvas id="nextCanvas" width="80" height="120" class="block"></canvas>
+                </div>
+
+                <!-- Score Board -->
+                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
+                    <span class="text-xs text-slate-400 font-bold">SCORE</span>
+                    <span id="scoreText" class="text-xl sm:text-2xl font-black text-amber-400">0</span>
+                </div>
+
+                <!-- Max Chain Board -->
+                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
+                    <span class="text-xs text-slate-400 font-bold">MAX CHAIN</span>
+                    <span id="maxChainText" class="text-lg sm:text-xl font-bold text-pink-400">0</span>
+                </div>
+
+                <!-- Level Board -->
+                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
+                    <span class="text-xs text-slate-400 font-bold">LEVEL</span>
+                    <span id="levelText" class="text-base font-bold text-cyan-400">1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch Controls for Mobile/Tablet -->
+        <div class="w-full grid grid-cols-5 gap-1.5 mt-4 sm:hidden">
+            <button id="btnLeft" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-slate-200 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
+            <button id="btnRight" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-slate-200 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-right"></i></button>
+            <button id="btnRotL" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-cyan-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-undo"></i></button>
+            <button id="btnRotR" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-cyan-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-redo"></i></button>
+            <button id="btnDown" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-amber-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-down"></i></button>
+        </div>
+
+    </div>
+
+    <!-- Game Script -->
+    <script>
+        /**
+         * Puyo Puyo Engine Script
+         */
+
+        // Audio System (Synthesized Web Audio API)
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playPop(chain = 1) {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    // Higher pitch for higher chain
+                    const baseFreq = 300 + (chain * 70);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, this.ctx.currentTime + 0.15);
+
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.15);
+                } catch(e) {}
+            }
+
+            playMove() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.05);
+                } catch(e) {}
+            }
+
+            playRotate() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.08);
+                } catch(e) {}
+            }
+
+            playGameOver() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.6);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.6);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.6);
+                } catch(e) {}
+            }
+        }
+
+        const sound = new SoundSystem();
+
+        // Game Configuration & Constants
+        const COLS = 6;
+        const ROWS = 12;
+        const HIDDEN_ROWS = 1; // Row index 0 is top hidden/spawn area
+        const TOTAL_ROWS = ROWS + HIDDEN_ROWS;
+        
+        let BLOCK_SIZE = 32; // Dynamic setup on resize
+
+        // Puyo Colors definition
+        const COLORS = [
+            null, // 0 = Empty
+            { main: '#ef4444', light: '#fca5a5', shadow: '#991b1b', eye: '#ffffff' }, // 1: Red
+            { main: '#3b82f6', light: '#93c5fd', shadow: '#1e40af', eye: '#ffffff' }, // 2: Blue
+            { main: '#22c55e', light: '#86efac', shadow: '#166534', eye: '#ffffff' }, // 3: Green
+            { main: '#eab308', light: '#fef08a', shadow: '#854d0e', eye: '#ffffff' }, // 4: Yellow
+            { main: '#a855f7', light: '#d8b4fe', shadow: '#6b21a8', eye: '#ffffff' }  // 5: Purple
+        ];
+
+        // Canvas references
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        // UI elements
+        const scoreText = document.getElementById('scoreText');
+        const maxChainText = document.getElementById('maxChainText');
+        const levelText = document.getElementById('levelText');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySub = document.getElementById('overlaySub');
+        const startBtn = document.getElementById('startBtn');
+        const comboContainer = document.getElementById('comboContainer');
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
+        const soundIcon = document.getElementById('soundIcon');
+
+        // Game State Variables
+        let grid = [];
+        let currentPiece = null;
+        let nextPiece = null;
+        let score = 0;
+        let maxChain = 0;
+        let level = 1;
+        let isGameOver = false;
+        let isPaused = true;
+        let isProcessingChain = false;
+        
+        let dropCounter = 0;
+        let dropInterval = 800; // ms per drop
+        let lastTime = 0;
+
+        let particles = [];
+
+        // Piece Definition (Pair of Puyo)
+        // Center Puyo (x, y) & Rotating Puyo relative (dx, dy)
+        class Piece {
+            constructor(c1, c2) {
+                this.x = 2; // Col index
+                this.y = 0; // Row index
+                this.color1 = c1 || Math.floor(Math.random() * 4) + 1;
+                this.color2 = c2 || Math.floor(Math.random() * 4) + 1;
+                // Rotation state: 0: Top, 1: Right, 2: Bottom, 3: Left
+                this.rotation = 0;
+            }
+
+            getOtherPos() {
+                const offsets = [
+                    { x: 0, y: -1 }, // 0: Top
+                    { x: 1, y: 0 },  // 1: Right
+                    { x: 0, y: 1 },  // 2: Bottom
+                    { x: -1, y: 0 }  // 3: Left
+                ];
+                const off = offsets[this.rotation];
+                return { x: this.x + off.x, y: this.y + off.y };
+            }
+        }
+
+        // Initialize Canvas Sizing
+        function resizeCanvas() {
+            const containerWidth = Math.min(window.innerWidth - 120, 280);
+            BLOCK_SIZE = Math.floor(containerWidth / COLS);
+            
+            canvas.width = COLS * BLOCK_SIZE;
+            canvas.height = ROWS * BLOCK_SIZE;
+
+            nextCanvas.width = 80;
+            nextCanvas.height = 120;
+        }
+
+        // Initialize Grid Data Structure
+        function initGrid() {
+            grid = Array.from({ length: TOTAL_ROWS }, () => Array(COLS).fill(0));
+        }
+
+        // Generate Random Pair
+        function getRandomPiece() {
+            // Colors pool based on level (max 5 colors)
+            const numColors = Math.min(4 + Math.floor((level - 1) / 3), 5);
+            const c1 = Math.floor(Math.random() * numColors) + 1;
+            const c2 = Math.floor(Math.random() * numColors) + 1;
+            return new Piece(c1, c2);
+        }
+
+        // Draw Single Puyo with eye expressions and smooth design
+        function drawPuyo(context, x, y, colorId, size, eyeScale = 1, isGhost = false) {
+            if (!colorId || colorId === 0) return;
+            const color = COLORS[colorId];
+            const radius = (size / 2) * 0.9;
+            const centerX = x + size / 2;
+            const centerY = y + size / 2;
+
+            context.save();
+
+            if (isGhost) {
+                context.globalAlpha = 0.3;
+            }
+
+            // Main Body Shadow
+            context.beginPath();
+            context.arc(centerX, centerY + 2, radius, 0, Math.PI * 2);
+            context.fillStyle = color.shadow;
+            context.fill();
+
+            // Main Body Gradient
+            context.beginPath();
+            context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            const grad = context.createRadialGradient(
+                centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.1,
+                centerX, centerY, radius
+            );
+            grad.addColorStop(0, color.light);
+            grad.addColorStop(0.7, color.main);
+            grad.addColorStop(1, color.shadow);
+            context.fillStyle = grad;
+            context.fill();
+
+            // Inner Highlight
+            context.beginPath();
+            context.arc(centerX - radius * 0.35, centerY - radius * 0.35, radius * 0.25, 0, Math.PI * 2);
+            context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            context.fill();
+
+            // Eyes Drawing
+            if (!isGhost) {
+                const eyeOffsetX = radius * 0.3;
+                const eyeOffsetY = -radius * 0.1;
+                const eyeRadius = radius * 0.22 * eyeScale;
+
+                // Left Eye
+                context.beginPath();
+                context.arc(centerX - eyeOffsetX, centerY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                context.fillStyle = '#ffffff';
+                context.fill();
+                context.beginPath();
+                context.arc(centerX - eyeOffsetX + 1, centerY + eyeOffsetY, eyeRadius * 0.5, 0, Math.PI * 2);
+                context.fillStyle = '#1e293b';
+                context.fill();
+
+                // Right Eye
+                context.beginPath();
+                context.arc(centerX + eyeOffsetX, centerY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                context.fillStyle = '#ffffff';
+                context.fill();
+                context.beginPath();
+                context.arc(centerX + eyeOffsetX - 1, centerY + eyeOffsetY, eyeRadius * 0.5, 0, Math.PI * 2);
+                context.fillStyle = '#1e293b';
+                context.fill();
+            }
+
+            context.restore();
+        }
+
+        // Render Entire Canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Grid Lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 1;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                }
+            }
+
+            // Draw Fixed Blocks on Grid
+            for (let r = HIDDEN_ROWS; r < TOTAL_ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const colorId = grid[r][c];
+                    if (colorId > 0) {
+                        const drawY = (r - HIDDEN_ROWS) * BLOCK_SIZE;
+                        drawPuyo(ctx, c * BLOCK_SIZE, drawY, colorId, BLOCK_SIZE);
+                    }
+                }
+            }
+
+            // Draw Active Controlled Piece
+            if (currentPiece && !isProcessingChain) {
+                const otherPos = currentPiece.getOtherPos();
+
+                // Draw Center Puyo
+                if (currentPiece.y >= HIDDEN_ROWS) {
+                    drawPuyo(ctx, currentPiece.x * BLOCK_SIZE, (currentPiece.y - HIDDEN_ROWS) * BLOCK_SIZE, currentPiece.color1, BLOCK_SIZE);
+                }
+
+                // Draw Rotated Companion Puyo
+                if (otherPos.y >= HIDDEN_ROWS) {
+                    drawPuyo(ctx, otherPos.x * BLOCK_SIZE, (otherPos.y - HIDDEN_ROWS) * BLOCK_SIZE, currentPiece.color2, BLOCK_SIZE);
+                }
+            }
+
+            // Render Particles
+            updateAndDrawParticles();
+
+            // Draw Next Piece Preview
+            drawNextPiece();
+        }
+
+        // Render Next Piece Sidebar Canvas
+        function drawNextPiece() {
+            nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+            if (!nextPiece) return;
+
+            const size = 32;
+            const startX = (nextCanvas.width - size) / 2;
+            const startY = (nextCanvas.height - size * 2) / 2;
+
+            // Draw companion top, center bottom
+            drawPuyo(nextCtx, startX, startY, nextPiece.color2, size);
+            drawPuyo(nextCtx, startX, startY + size, nextPiece.color1, size);
+        }
+
+        // Particle System for Chain Explosions
+        function createExplosion(x, y, colorId) {
+            const count = 12;
+            const color = COLORS[colorId] ? COLORS[colorId].main : '#ffffff';
+
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+                const speed = 2 + Math.random() * 4;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 3 + Math.random() * 3,
+                    color: color,
+                    alpha: 1,
+                    life: 1
+                });
+            }
+        }
+
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15; // Gravity
+                p.alpha -= 0.03;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Show Visual Floating Text for Combos
+        function showComboText(chainCount) {
+            const el = document.createElement('div');
+            el.className = 'combo-text absolute text-center font-black text-3xl sm:text-4xl text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] pointer-events-none';
+            el.innerText = `${chainCount} 연쇄!`;
+            comboContainer.appendChild(el);
+
+            setTimeout(() => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            }, 800);
+        }
+
+        // Collision Check Logic
+        function isValidPos(x, y, rotation, puyo) {
+            const offsets = [
+                { x: 0, y: -1 },
+                { x: 1, y: 0 },
+                { x: 0, y: 1 },
+                { x: -1, y: 0 }
+            ];
+            const off = offsets[rotation];
+            const x2 = x + off.x;
+            const y2 = y + off.y;
+
+            // Check center
+            if (x < 0 || x >= COLS || y >= TOTAL_ROWS) return false;
+            if (y >= 0 && grid[y][x] !== 0) return false;
+
+            // Check companion
+            if (x2 < 0 || x2 >= COLS || y2 >= TOTAL_ROWS) return false;
+            if (y2 >= 0 && grid[y2][x2] !== 0) return false;
+
+            return true;
+        }
+
+        // Lock Active Piece to Grid
+        function lockPiece() {
+            if (!currentPiece) return;
+            
+            const otherPos = currentPiece.getOtherPos();
+            
+            if (currentPiece.y >= 0 && currentPiece.y < TOTAL_ROWS) {
+                grid[currentPiece.y][currentPiece.x] = currentPiece.color1;
+            }
+            if (otherPos.y >= 0 && otherPos.y < TOTAL_ROWS) {
+                grid[otherPos.y][otherPos.x] = currentPiece.color2;
+            }
+
+            currentPiece = null;
+            processChains();
+        }
+
+        // Gravity Effect: Drop Floating Puyos
+        function applyGravity() {
+            let moved = false;
+            for (let c = 0; c < COLS; c++) {
+                for (let r = TOTAL_ROWS - 2; r >= 0; r--) {
+                    if (grid[r][c] !== 0 && grid[r + 1][c] === 0) {
+                        let targetR = r;
+                        while (targetR + 1 < TOTAL_ROWS && grid[targetR + 1][c] === 0) {
+                            targetR++;
+                        }
+                        grid[targetR][c] = grid[r][c];
+                        grid[r][c] = 0;
+                        moved = true;
+                    }
+                }
+            }
+            return moved;
+        }
+
+        // Flood Fill Algorithm to Find Connected Match Groups
+        function findMatches() {
+            const visited = Array.from({ length: TOTAL_ROWS }, () => Array(COLS).fill(false));
+            const matchedCoords = [];
+
+            for (let r = HIDDEN_ROWS; r < TOTAL_ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const color = grid[r][c];
+                    if (color > 0 && !visited[r][c]) {
+                        const group = [];
+                        const queue = [{ r, c }];
+                        visited[r][c] = true;
+
+                        while (queue.length > 0) {
+                            const curr = queue.shift();
+                            group.push(curr);
+
+                            const neighbors = [
+                                { r: curr.r - 1, c: curr.c },
+                                { r: curr.r + 1, c: curr.c },
+                                { r: curr.r, c: curr.c - 1 },
+                                { r: curr.r, c: curr.c + 1 }
+                            ];
+
+                            for (const n of neighbors) {
+                                if (n.r >= HIDDEN_ROWS && n.r < TOTAL_ROWS && n.c >= 0 && n.c < COLS) {
+                                    if (!visited[n.r][n.c] && grid[n.r][n.c] === color) {
+                                        visited[n.r][n.c] = true;
+                                        queue.push(n);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4 or more connected puyos form a match
+                        if (group.length >= 4) {
+                            matchedCoords.push(...group);
+                        }
+                    }
+                }
+            }
+            return matchedCoords;
+        }
+
+        // Main Loop Async Controller for Explosions and Gravity Chains
+        async function processChains() {
+            isProcessingChain = true;
+            let currentChain = 0;
+
+            while (true) {
+                // Drop any ungrounded Puyos first
+                let gravityMoved = applyGravity();
+                if (gravityMoved) {
+                    draw();
+                    await new Promise(res => setTimeout(res, 180));
+                }
+
+                // Check for matches
+                const matches = findMatches();
+                if (matches.length === 0) break; // Chain ends
+
+                currentChain++;
+                sound.playPop(currentChain);
+                showComboText(currentChain);
+
+                // Update Max Chain Tracking
+                if (currentChain > maxChain) {
+                    maxChain = currentChain;
+                    maxChainText.innerText = maxChain;
+                }
+
+                // Calculate Score
+                const popCount = matches.length;
+                const chainBonus = Math.pow(2, currentChain - 1) * 10;
+                score += popCount * chainBonus;
+                scoreText.innerText = score;
+
+                // Level Up Check
+                level = Math.floor(score / 2000) + 1;
+                levelText.innerText = level;
+                dropInterval = Math.max(150, 800 - (level - 1) * 70);
+
+                // Clear matched blocks & trigger particle effects
+                matches.forEach(m => {
+                    const colorId = grid[m.r][m.c];
+                    const px = m.c * BLOCK_SIZE + BLOCK_SIZE / 2;
+                    const py = (m.r - HIDDEN_ROWS) * BLOCK_SIZE + BLOCK_SIZE / 2;
+                    createExplosion(px, py, colorId);
+                    grid[m.r][m.c] = 0;
+                });
+
+                draw();
+                await new Promise(res => setTimeout(res, 350));
+            }
+
+            isProcessingChain = false;
+            spawnPiece();
+        }
+
+        // Spawn New Active Piece
+        function spawnPiece() {
+            if (isGameOver) return;
+
+            currentPiece = nextPiece || getRandomPiece();
+            nextPiece = getRandomPiece();
+
+            // Set spawn position
+            currentPiece.x = 2;
+            currentPiece.y = 1;
+            currentPiece.rotation = 0;
+
+            // Game Over Check (Spawn position blocked)
+            if (!isValidPos(currentPiece.x, currentPiece.y, currentPiece.rotation, currentPiece)) {
+                handleGameOver();
+            }
+        }
+
+        // Movement Controls
+        function moveLeft() {
+            if (!currentPiece || isProcessingChain || isPaused) return;
+            if (isValidPos(currentPiece.x - 1, currentPiece.y, currentPiece.rotation, currentPiece)) {
+                currentPiece.x--;
+                sound.playMove();
+            }
+        }
+
+        function moveRight() {
+            if (!currentPiece || isProcessingChain || isPaused) return;
+            if (isValidPos(currentPiece.x + 1, currentPiece.y, currentPiece.rotation, currentPiece)) {
+                currentPiece.x++;
+                sound.playMove();
+            }
+        }
+
+        function moveDown() {
+            if (!currentPiece || isProcessingChain || isPaused) return;
+            if (isValidPos(currentPiece.x, currentPiece.y + 1, currentPiece.rotation, currentPiece)) {
+                currentPiece.y++;
+                score += 1;
+                scoreText.innerText = score;
+                dropCounter = 0;
+            } else {
+                lockPiece();
+            }
+        }
+
+        function rotate(dir = 1) { // 1: Clockwise, -1: Counter-Clockwise
+            if (!currentPiece || isProcessingChain || isPaused) return;
+
+            const nextRot = (currentPiece.rotation + dir + 4) % 4;
+
+            // Basic Rotation Check
+            if (isValidPos(currentPiece.x, currentPiece.y, nextRot, currentPiece)) {
+                currentPiece.rotation = nextRot;
+                sound.playRotate();
+                return;
+            }
+
+            // Wall-kick Check (Try moving left or right to accommodate rotation)
+            const kickOffsets = [-1, 1];
+            for (let kick of kickOffsets) {
+                if (isValidPos(currentPiece.x + kick, currentPiece.y, nextRot, currentPiece)) {
+                    currentPiece.x += kick;
+                    currentPiece.rotation = nextRot;
+                    sound.playRotate();
+                    return;
+                }
+            }
+        }
+
+        // Main Game Loop Update Routine
+        function update(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            if (!isPaused && !isGameOver && !isProcessingChain) {
+                dropCounter += deltaTime;
+                if (dropCounter > dropInterval) {
+                    if (currentPiece) {
+                        if (isValidPos(currentPiece.x, currentPiece.y + 1, currentPiece.rotation, currentPiece)) {
+                            currentPiece.y++;
+                        } else {
+                            lockPiece();
+                        }
+                    }
+                    dropCounter = 0;
+                }
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // Game Over Trigger
+        function handleGameOver() {
+            isGameOver = true;
+            isPaused = true;
+            sound.playGameOver();
+
+            overlayTitle.innerText = "GAME OVER";
+            overlaySub.innerText = `최종 점수: ${score} | 최대 연쇄: ${maxChain}`;
+            startBtn.innerText = "다시 시작";
+            overlay.classList.remove('hidden');
+        }
+
+        // Reset and Start Game
+        function startGame() {
+            sound.init();
+            initGrid();
+
+            score = 0;
+            maxChain = 0;
+            level = 1;
+            dropInterval = 800;
+            isGameOver = false;
+            isPaused = false;
+            particles = [];
+
+            scoreText.innerText = score;
+            maxChainText.innerText = maxChain;
+            levelText.innerText = level;
+
+            nextPiece = getRandomPiece();
+            spawnPiece();
+
+            overlay.classList.add('hidden');
+        }
+
+        // Input Listeners
+        window.addEventListener('keydown', (e) => {
+            if (isPaused || isGameOver) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    moveLeft();
+                    break;
+                case 'ArrowRight':
+                    moveRight();
+                    break;
+                case 'ArrowDown':
+                    moveDown();
+                    break;
+                case 'ArrowUp':
+                case 'x':
+                case 'X':
+                    rotate(1);
+                    break;
+                case 'z':
+                case 'Z':
+                    rotate(-1);
+                    break;
+            }
+        });
+
+        // Mobile Touch Button Listeners
+        document.getElementById('btnLeft').addEventListener('click', () => moveLeft());
+        document.getElementById('btnRight').addEventListener('click', () => moveRight());
+        document.getElementById('btnDown').addEventListener('click', () => moveDown());
+        document.getElementById('btnRotR').addEventListener('click', () => rotate(1));
+        document.getElementById('btnRotL').addEventListener('click', () => rotate(-1));
+
+        startBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        // Sound Toggle
+        soundToggleBtn.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            if (sound.enabled) {
+                soundIcon.className = "fas fa-volume-up text-lg";
+                soundToggleBtn.classList.remove('text-slate-500');
+                soundToggleBtn.classList.add('text-yellow-400');
+            } else {
+                soundIcon.className = "fas fa-volume-mute text-lg";
+                soundToggleBtn.classList.remove('text-yellow-400');
+                soundToggleBtn.classList.add('text-slate-500');
+            }
+        });
+
+        // Window Resize Handling
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+
+        // Boot Initialization
+        window.onload = () => {
+            resizeCanvas();
+            initGrid();
+            requestAnimationFrame(update);
+        };
+    </script>
+</body>
+</html>
