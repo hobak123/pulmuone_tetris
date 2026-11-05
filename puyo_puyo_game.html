@@ -3,26 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Puyo Puyo Pop</title>
+    <title>풀무원 바른 뿌요</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --pm-green: #00953a;       /* 풀무원 그린 */
+            --pm-green-dark: #006b2b;
+            --pm-green-light: #e8f4e3;
+            --pm-leaf: #8cc63f;
+            --pm-cream: #fbf8f1;
+            --pm-ink: #23322a;
+            --pm-muted: #6b7a70;
+            --pm-line: #dfe8d9;
+        }
+
         body {
-            font-family: 'Jua', sans-serif;
-            background: linear-gradient(135deg, #1e1b4b 0%, #311b92 50%, #4a148c 100%);
+            font-family: 'Noto Sans KR', sans-serif;
+            color: var(--pm-ink);
+            background-color: var(--pm-cream);
+            background-image:
+                radial-gradient(circle at 12% 18%, rgba(140, 198, 63, 0.18) 0, transparent 38%),
+                radial-gradient(circle at 88% 82%, rgba(0, 149, 58, 0.14) 0, transparent 42%);
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
         }
 
+        /* 상단 브랜드 바 */
+        .brand-bar {
+            background: var(--pm-green);
+        }
+
+        .brand-mark {
+            width: 38px; height: 38px;
+            border-radius: 50% 50% 50% 8px;
+            background: linear-gradient(145deg, var(--pm-leaf), var(--pm-green));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(0, 149, 58, 0.3);
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--pm-line);
+            border-radius: 16px;
+            box-shadow: 0 2px 6px rgba(35, 50, 42, 0.05);
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--pm-muted);
+        }
+
+        .pm-btn {
+            background: var(--pm-green);
+            color: #fff;
+            transition: background .2s, transform .1s;
+        }
+        .pm-btn:hover { background: var(--pm-green-dark); }
+        .pm-btn:active { transform: scale(0.97); }
+
+        .ctrl-btn {
+            background: #fff;
+            border: 1px solid var(--pm-line);
+            color: var(--pm-green);
+        }
+        .ctrl-btn:active { background: var(--pm-green-light); transform: scale(0.95); }
+
         /* Canvas custom styling */
         .game-board-container {
             position: relative;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, #ffffff 0%, var(--pm-green-light) 100%);
+            border: 3px solid var(--pm-green);
+            box-shadow: 0 10px 24px rgba(0, 107, 43, 0.15);
+        }
+
+        .combo-text {
+            color: var(--pm-green);
+            -webkit-text-stroke: 6px #fff;
+            paint-order: stroke fill;
+            text-shadow: 0 4px 12px rgba(0, 107, 43, 0.25);
         }
 
         /* Pulse and glow animations for combos */
@@ -41,38 +108,51 @@
             width: 6px;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 149, 58, 0.3);
             border-radius: 3px;
         }
     </style>
 </head>
-<body class="min-h-screen text-white flex flex-col items-center justify-center p-2 sm:p-4 overflow-x-hidden">
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 overflow-x-hidden">
 
     <!-- Game Container -->
-    <div class="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl p-4 border border-slate-700/50 shadow-2xl flex flex-col items-center">
-        
+    <div class="w-full max-w-md bg-white rounded-3xl overflow-hidden border border-[#dfe8d9] shadow-[0_20px_50px_rgba(0,107,43,0.12)] flex flex-col items-center">
+
+        <!-- Top brand strip -->
+        <div class="brand-bar w-full text-white text-[11px] font-medium tracking-wide px-5 py-1.5 flex items-center justify-between">
+            <span><i class="fas fa-seedling mr-1"></i>사람과 자연을 사랑하는 바른먹거리</span>
+            <span class="opacity-80">PULMUONE</span>
+        </div>
+
+        <div class="w-full p-4 flex flex-col items-center">
+
         <!-- Header / Title -->
-        <div class="w-full flex items-center justify-between mb-3 px-2">
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-400 tracking-wider">
-                PUYO PUYO
-            </h1>
-            <button id="soundToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-yellow-400 p-2.5 rounded-full transition-all border border-slate-600 active:scale-95">
-                <i class="fas fa-volume-up text-lg" id="soundIcon"></i>
+        <div class="w-full flex items-center justify-between mb-4 px-1">
+            <div class="flex items-center gap-2.5">
+                <div class="brand-mark"><i class="fas fa-leaf"></i></div>
+                <div class="leading-tight">
+                    <h1 class="text-xl sm:text-2xl font-black text-[#00953a] tracking-tight">풀무원 바른 뿌요</h1>
+                    <p class="text-[11px] text-[#6b7a70] font-medium">신선한 재료 4개를 모아 터뜨려 보세요</p>
+                </div>
+            </div>
+            <button id="soundToggleBtn" class="bg-[#e8f4e3] hover:bg-[#d6ecce] text-[#00953a] w-10 h-10 rounded-full transition-all active:scale-95 flex items-center justify-center">
+                <i class="fas fa-volume-up text-base" id="soundIcon"></i>
             </button>
         </div>
 
         <!-- Main Layout Grid -->
         <div class="w-full flex gap-3 justify-center items-start">
-            
+
             <!-- Game Canvas Board -->
-            <div class="game-board-container bg-slate-950/90 rounded-2xl border-4 border-slate-800 overflow-hidden relative">
+            <div class="game-board-container rounded-2xl overflow-hidden relative">
                 <canvas id="gameCanvas" class="block"></canvas>
-                
+
                 <!-- Overlay for Pause/Game Over -->
-                <div id="overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-4 transition-all duration-300 z-10">
-                    <h2 id="overlayTitle" class="text-3xl sm:text-4xl font-bold text-yellow-400 drop-shadow-md">PUYO POP</h2>
-                    <p id="overlaySub" class="text-slate-300 text-sm sm:text-base px-6 text-center">방향키로 이동 / Z,X 또는 Up키로 회전</p>
-                    <button id="startBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-8 rounded-full text-lg shadow-lg hover:shadow-emerald-500/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all">
+                <div id="overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3 transition-all duration-300 z-10">
+                    <div class="brand-mark" style="width:52px;height:52px;font-size:22px"><i class="fas fa-seedling"></i></div>
+                    <h2 id="overlayTitle" class="text-2xl sm:text-3xl font-black text-[#00953a]">바른 뿌요</h2>
+                    <p id="overlaySub" class="text-[#6b7a70] text-xs sm:text-sm px-6 text-center leading-relaxed">방향키로 이동<br>Z, X 또는 ↑ 키로 회전</p>
+                    <button id="startBtn" class="pm-btn font-bold py-2.5 px-8 rounded-full text-base shadow-md mt-1">
                         게임 시작
                     </button>
                 </div>
@@ -82,40 +162,47 @@
             </div>
 
             <!-- Sidebar Info Panel -->
-            <div class="flex flex-col gap-3 w-28 sm:w-32">
+            <div class="flex flex-col gap-2.5 w-28 sm:w-32">
                 <!-- Next Piece Box -->
-                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
-                    <span class="text-xs text-slate-400 font-bold mb-1">NEXT</span>
+                <div class="card p-2.5 flex flex-col items-center">
+                    <span class="card-label mb-1">NEXT</span>
                     <canvas id="nextCanvas" width="80" height="120" class="block"></canvas>
                 </div>
 
                 <!-- Score Board -->
-                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
-                    <span class="text-xs text-slate-400 font-bold">SCORE</span>
-                    <span id="scoreText" class="text-xl sm:text-2xl font-black text-amber-400">0</span>
+                <div class="card p-2.5 flex flex-col items-center">
+                    <span class="card-label">SCORE</span>
+                    <span id="scoreText" class="text-xl sm:text-2xl font-black text-[#00953a]">0</span>
                 </div>
 
                 <!-- Max Chain Board -->
-                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
-                    <span class="text-xs text-slate-400 font-bold">MAX CHAIN</span>
-                    <span id="maxChainText" class="text-lg sm:text-xl font-bold text-pink-400">0</span>
+                <div class="card p-2.5 flex flex-col items-center">
+                    <span class="card-label">MAX CHAIN</span>
+                    <span id="maxChainText" class="text-lg sm:text-xl font-bold text-[#23322a]">0</span>
                 </div>
 
                 <!-- Level Board -->
-                <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700 flex flex-col items-center shadow-inner">
-                    <span class="text-xs text-slate-400 font-bold">LEVEL</span>
-                    <span id="levelText" class="text-base font-bold text-cyan-400">1</span>
+                <div class="card p-2.5 flex flex-col items-center bg-[#e8f4e3]">
+                    <span class="card-label">LEVEL</span>
+                    <span id="levelText" class="text-base font-bold text-[#006b2b]">1</span>
                 </div>
             </div>
         </div>
 
         <!-- Touch Controls for Mobile/Tablet -->
         <div class="w-full grid grid-cols-5 gap-1.5 mt-4 sm:hidden">
-            <button id="btnLeft" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-slate-200 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
-            <button id="btnRight" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-slate-200 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-right"></i></button>
-            <button id="btnRotL" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-cyan-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-undo"></i></button>
-            <button id="btnRotR" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-cyan-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-redo"></i></button>
-            <button id="btnDown" class="bg-slate-800 border border-slate-700 rounded-xl py-3 text-amber-400 active:bg-slate-700 active:scale-95 text-xl flex items-center justify-center"><i class="fas fa-arrow-down"></i></button>
+            <button id="btnLeft" class="ctrl-btn rounded-xl py-3 text-xl flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
+            <button id="btnRight" class="ctrl-btn rounded-xl py-3 text-xl flex items-center justify-center"><i class="fas fa-arrow-right"></i></button>
+            <button id="btnRotL" class="ctrl-btn rounded-xl py-3 text-xl flex items-center justify-center"><i class="fas fa-undo"></i></button>
+            <button id="btnRotR" class="ctrl-btn rounded-xl py-3 text-xl flex items-center justify-center"><i class="fas fa-redo"></i></button>
+            <button id="btnDown" class="pm-btn rounded-xl py-3 text-xl flex items-center justify-center"><i class="fas fa-arrow-down"></i></button>
+        </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="w-full border-t border-[#dfe8d9] text-center text-[11px] text-[#6b7a70] py-2.5">
+            <i class="fas fa-leaf text-[#8cc63f] mr-1"></i>토마토 · 블루베리 · 브로콜리 · 콩 · 가지
         </div>
 
     </div>
@@ -227,11 +314,11 @@
         // Puyo Colors definition
         const COLORS = [
             null, // 0 = Empty
-            { main: '#ef4444', light: '#fca5a5', shadow: '#991b1b', eye: '#ffffff' }, // 1: Red
-            { main: '#3b82f6', light: '#93c5fd', shadow: '#1e40af', eye: '#ffffff' }, // 2: Blue
-            { main: '#22c55e', light: '#86efac', shadow: '#166534', eye: '#ffffff' }, // 3: Green
-            { main: '#eab308', light: '#fef08a', shadow: '#854d0e', eye: '#ffffff' }, // 4: Yellow
-            { main: '#a855f7', light: '#d8b4fe', shadow: '#6b21a8', eye: '#ffffff' }  // 5: Purple
+            { main: '#e5483b', light: '#ff9a8a', shadow: '#a82a20', leaf: '#3e9b2f' }, // 1: 토마토
+            { main: '#4a63c9', light: '#9fb1f0', shadow: '#2b3d8f', leaf: '#3e9b2f' }, // 2: 블루베리
+            { main: '#45a535', light: '#a8dc8a', shadow: '#24701b', leaf: '#1d5a15' }, // 3: 브로콜리
+            { main: '#ebb92e', light: '#fbe39a', shadow: '#a67a0e', leaf: '#3e9b2f' }, // 4: 콩(두부)
+            { main: '#8a4fb5', light: '#c9a3e6', shadow: '#5a2c80', leaf: '#3e9b2f' }  // 5: 가지
         ];
 
         // Canvas references
@@ -383,7 +470,25 @@
                 context.arc(centerX + eyeOffsetX - 1, centerY + eyeOffsetY, eyeRadius * 0.5, 0, Math.PI * 2);
                 context.fillStyle = '#1e293b';
                 context.fill();
+
+                // 볼터치
+                context.fillStyle = 'rgba(255, 255, 255, 0.28)';
+                context.beginPath();
+                context.ellipse(centerX - radius * 0.55, centerY + radius * 0.25, radius * 0.14, radius * 0.08, 0, 0, Math.PI * 2);
+                context.ellipse(centerX + radius * 0.55, centerY + radius * 0.25, radius * 0.14, radius * 0.08, 0, 0, Math.PI * 2);
+                context.fill();
             }
+
+            // 새싹 꼭지 (풀무원 자연 모티프)
+            const topY = centerY - radius * 0.92;
+            const leafLen = radius * 0.42;
+            context.fillStyle = color.leaf;
+            context.beginPath();
+            context.ellipse(centerX + leafLen * 0.45, topY - leafLen * 0.2, leafLen * 0.5, leafLen * 0.22, -Math.PI / 6, 0, Math.PI * 2);
+            context.fill();
+            context.beginPath();
+            context.ellipse(centerX - leafLen * 0.35, topY - leafLen * 0.12, leafLen * 0.38, leafLen * 0.18, Math.PI / 6, 0, Math.PI * 2);
+            context.fill();
 
             context.restore();
         }
@@ -393,7 +498,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw Background Grid Lines
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.strokeStyle = 'rgba(0, 149, 58, 0.08)';
             ctx.lineWidth = 1;
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
@@ -495,7 +600,7 @@
         // Show Visual Floating Text for Combos
         function showComboText(chainCount) {
             const el = document.createElement('div');
-            el.className = 'combo-text absolute text-center font-black text-3xl sm:text-4xl text-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] pointer-events-none';
+            el.className = 'combo-text absolute text-center font-black text-3xl sm:text-4xl pointer-events-none';
             el.innerText = `${chainCount} 연쇄!`;
             comboContainer.appendChild(el);
 
@@ -762,8 +867,8 @@
             isPaused = true;
             sound.playGameOver();
 
-            overlayTitle.innerText = "GAME OVER";
-            overlaySub.innerText = `최종 점수: ${score} | 최대 연쇄: ${maxChain}`;
+            overlayTitle.innerText = "수확 완료!";
+            overlaySub.innerText = `최종 점수 ${score}점 · 최대 ${maxChain}연쇄`;
             startBtn.innerText = "다시 시작";
             overlay.classList.remove('hidden');
         }
@@ -832,13 +937,11 @@
         soundToggleBtn.addEventListener('click', () => {
             sound.enabled = !sound.enabled;
             if (sound.enabled) {
-                soundIcon.className = "fas fa-volume-up text-lg";
-                soundToggleBtn.classList.remove('text-slate-500');
-                soundToggleBtn.classList.add('text-yellow-400');
+                soundIcon.className = "fas fa-volume-up text-base";
+                soundToggleBtn.style.color = '';
             } else {
-                soundIcon.className = "fas fa-volume-mute text-lg";
-                soundToggleBtn.classList.remove('text-yellow-400');
-                soundToggleBtn.classList.add('text-slate-500');
+                soundIcon.className = "fas fa-volume-mute text-base";
+                soundToggleBtn.style.color = '#9aa79f';
             }
         });
 
